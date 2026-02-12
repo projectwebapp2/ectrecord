@@ -371,8 +371,31 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Application Logic (Merged JavaScript.html) -->
+    <!-- Application Logic -->
     <script>
+    // ==========================================
+    // กำหนด URL ของ Google Apps Script Web App ที่นี่
+    // ต้องนำ URL ที่ได้จากการ Deploy เป็น Web App มาใส่ตรงนี้
+    // ==========================================
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycby_6_KgQMpdGZLajHSTBzagfIHEA_F8xeBI_rLeOgmarioBFICf4c6Nup5e7EZKtkxf/exec";
+
+    // ฟังก์ชันสำหรับเชื่อมต่อ API กลาง แทนการใช้ google.script.run
+    async function apiCall(action, payload = {}) {
+        payload.action = action;
+        try {
+            // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS Preflight ของฝั่ง Google Apps Script
+            const response = await fetch(GAS_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' }, 
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            throw new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const app = {
             // UI Elements
@@ -428,6 +451,10 @@
             currentStationsData: [],
 
             init() {
+                if (GAS_API_URL.includes("เปลี่ยนตรงนี้ให้เป็นของคุณ")) {
+                    Swal.fire('ข้อผิดพลาด', 'กรุณาใส่ URL ของ API (Google Apps Script) ในไฟล์โค้ดให้ถูกต้องก่อนเริ่มใช้งาน', 'error');
+                    return;
+                }
                 this.loadTheme();
                 this.setupEventListeners();
                 this.loadInitialData();
@@ -505,7 +532,7 @@
 
             showSystemSettings() {
                 this.showLoading('กำลังโหลดการตั้งค่า...');
-                google.script.run.withSuccessHandler(settings => {
+                apiCall('getSystemSettings').then(settings => {
                     settings = settings || { theme: 'green', startTime: '', endTime: '' };
                     Swal.close();
                     const colorOptions = Object.keys(this.themes).map(color => {
@@ -532,23 +559,23 @@
                         showCancelButton: true,
                         confirmButtonText: 'บันทึกการตั้งค่า',
                         confirmButtonColor: 'var(--theme-600)',
-                        preConfirm: () => { return { startTime: document.getElementById('system-start').value, endTime: document.getElementById('system-end').value } }
+                        preConfirm: () => { return { start: document.getElementById('system-start').value, end: document.getElementById('system-end').value } }
                     }).then((result) => {
                         if (result.isConfirmed) {
                             this.showLoading('กำลังบันทึก...');
-                            google.script.run.withSuccessHandler(res => this.showSuccess(res.message)).saveTimeSettings(result.value.startTime, result.value.endTime);
+                            apiCall('saveTimeSettings', result.value).then(res => this.showSuccess(res.message)).catch(e => this.showError(e.message));
                         }
                     });
-                }).getSystemSettings();
+                }).catch(e => this.showError(e.message));
             },
 
             selectTheme(color) {
                 this.applyTheme(color);
-                google.script.run.saveThemeSettings(color);
+                apiCall('saveThemeSettings', { themeColor: color }).catch(console.error);
             },
 
             loadTheme() {
-                google.script.run.withSuccessHandler(settings => { this.applyTheme(settings.theme || 'green'); }).getThemeSettings();
+                apiCall('getThemeSettings').then(settings => { this.applyTheme(settings.theme || 'green'); }).catch(console.error);
             },
 
             applyTheme(colorName) {
@@ -612,10 +639,10 @@
 
             showUserManagement() {
                 this.showLoading('กำลังโหลดข้อมูลผู้ใช้...');
-                google.script.run.withSuccessHandler(users => {
+                apiCall('getAllUsers').then(users => {
                     Swal.close();
                     this.renderUserManagementModal(users);
-                }).getAllUsers();
+                }).catch(e => this.showError(e.message));
             },
 
             renderUserManagementModal(users) {
@@ -683,11 +710,11 @@
             },
 
             toggleUserEdit(username, canEdit) {
-                google.script.run.withSuccessHandler(res => { if(res.status !== 'success') this.showError(res.message); }).toggleUserStatus(username, canEdit);
+                apiCall('toggleUserStatus', { username, canEdit }).then(res => { if(res.status !== 'success') this.showError(res.message); }).catch(e => this.showError(e.message));
             },
 
             toggleTimeOverride(username, ignoreTime) {
-                google.script.run.withSuccessHandler(res => { if(res.status !== 'success') this.showError(res.message); }).toggleUserTimeOverride(username, ignoreTime);
+                apiCall('toggleUserTimeOverride', { username, ignoreTime }).then(res => { if(res.status !== 'success') this.showError(res.message); }).catch(e => this.showError(e.message));
             },
 
             addUser() {
@@ -701,9 +728,9 @@
                         const { user, pass } = result.value;
                         if(!user || !pass) return Swal.fire('Error', 'กรุณากรอกข้อมูลให้ครบ', 'error');
                         this.showLoading('กำลังบันทึก...');
-                        google.script.run.withSuccessHandler(res => {
+                        apiCall('saveUser', { username: user, password: pass, isEdit: false, oldUsername: null, canEdit: true, ignoreTime: false }).then(res => {
                             if(res.status === 'success') { this.showSuccess(res.message); this.showUserManagement(); } else { this.showError(res.message); }
-                        }).saveUser(user, pass, false, null, true);
+                        }).catch(e => this.showError(e.message));
                     }
                 });
             },
@@ -719,9 +746,9 @@
                         const { user, pass } = result.value;
                         if(!pass) return Swal.fire('Error', 'กรุณากรอกรหัสผ่าน', 'error');
                         this.showLoading('กำลังอัปเดต...');
-                        google.script.run.withSuccessHandler(res => {
+                        apiCall('saveUser', { username: user, password: pass, isEdit: true, oldUsername: oldUser, canEdit: true, ignoreTime: false }).then(res => {
                             if(res.status === 'success') { this.showSuccess(res.message); this.showUserManagement(); } else { this.showError(res.message); }
-                        }).saveUser(user, pass, true, oldUser, true); 
+                        }).catch(e => this.showError(e.message)); 
                     }
                 });
             },
@@ -732,9 +759,9 @@
                 }).then((result) => {
                     if (result.isConfirmed) {
                         this.showLoading('กำลังลบ...');
-                        google.script.run.withSuccessHandler(res => {
+                        apiCall('deleteUser', { username }).then(res => {
                             if(res.status === 'success') { this.showSuccess(res.message); this.showUserManagement(); } else { this.showError(res.message); }
-                        }).deleteUser(username);
+                        }).catch(e => this.showError(e.message));
                     }
                 });
             },
@@ -746,13 +773,13 @@
                 }).then((result) => {
                     if (result.isConfirmed && result.value) {
                         this.showLoading('กำลังเพิ่มตำแหน่ง...');
-                        google.script.run.withSuccessHandler(response => {
+                        apiCall('addNewPersonnelRole', { roleTitle: result.value }).then(response => {
                             if (response.status === 'success') {
                                 this.showSuccess(response.message);
                                 this.loadInitialData();
                                 setTimeout(() => { this.generatePersonnelTabs(); this.updatePersonnelSummary(); }, 1000);
                             } else { this.showError(response.message); }
-                        }).addNewPersonnelRole(result.value);
+                        }).catch(e => this.showError(e.message));
                     }
                 });
             },
@@ -776,15 +803,15 @@
 
             loadInitialData() {
                 this.showLoading('กำลังเริ่มต้นระบบ...');
-                google.script.run.withSuccessHandler(roles => {
+                apiCall('getPersonnelRoles').then(roles => {
                     this.personnelTabsConfig = roles;
                     this.generatePersonnelTabs();
-                    google.script.run.withSuccessHandler(agencies => {
+                    apiCall('getAgencyList').then(agencies => {
                         this.populateAgencyDropdown(agencies);
                         this.checkLoginState();
                         Swal.close();
-                    }).getAgencyList();
-                }).getPersonnelRoles();
+                    }).catch(e => this.showError(e.message));
+                }).catch(e => this.showError(e.message));
             },
             
             populateAgencyDropdown(agencies) {
@@ -857,10 +884,10 @@
                 this.stationsTableBody.innerHTML = loaderHtml;
                 this.stationsGridContainer.innerHTML = `<div class="col-span-full text-center py-10"><i class="fa-solid fa-spinner fa-spin text-2xl text-theme-700"></i><p class="mt-2">กำลังโหลดข้อมูล...</p></div>`;
 
-                google.script.run.withSuccessHandler(stations => {
-                        this.currentStationsData = stations;
-                        this.updateViewUI();
-                    }).getPollingStations(this.currentUser);
+                apiCall('getPollingStations', { agency: this.currentUser }).then(stations => {
+                    this.currentStationsData = stations;
+                    this.updateViewUI();
+                }).catch(e => this.showError(e.message));
             },
 
             renderStationsTable(stations) {
@@ -940,14 +967,14 @@
                 const agency = document.getElementById('agency').value;
                 const password = document.getElementById('password').value;
                 this.showLoading('กำลังตรวจสอบ...');
-                google.script.run.withSuccessHandler(response => {
+                apiCall('login', { agency, password }).then(response => {
                     Swal.close();
                     if (response.status === 'success') {
                         this.currentUser = response.agency;
                         sessionStorage.setItem('loggedInAgency', response.agency);
                         this.showMainPage();
                     } else { this.showError(response.message); }
-                }).login(agency, password);
+                }).catch(e => this.showError(e.message));
             },
             
             handleLogout() { sessionStorage.removeItem('loggedInAgency'); this.checkLoginState(); },
@@ -1024,11 +1051,13 @@
                 });
             },
             
-            loadAndShowNewsPopup() { google.script.run.withSuccessHandler(news => { if (news && news.isEnabled) this.showNewsPopup(news); }).getNewsData(); },
+            loadAndShowNewsPopup() { 
+                apiCall('getNewsData').then(news => { if (news && news.isEnabled) this.showNewsPopup(news); }).catch(console.error); 
+            },
             
             showNewsManagementModal() {
                  this.showLoading('กำลังโหลดข้อมูลประกาศ...');
-                 google.script.run.withSuccessHandler(news => {
+                 apiCall('getNewsData').then(news => {
                      Swal.close();
                      Swal.fire({
                          title: 'จัดการประกาศข่าวสาร',
@@ -1042,12 +1071,17 @@
                          width: 'clamp(320px, 90vw, 600px)', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: 'var(--theme-600)',
                          preConfirm: () => { return { title: document.getElementById('news-title').value, content: document.getElementById('news-content').value, isEnabled: document.getElementById('news-enabled').checked }; }
                      }).then(res => { if(res.isConfirmed) { this.handleSaveNews(res.value); } });
-                 }).getNewsData();
+                 }).catch(e => this.showError(e.message));
             },
 
-            handleSaveNews(data) { this.showLoading('กำลังบันทึก...'); google.script.run.withSuccessHandler(res => this.showSuccess(res.message)).saveNewsData(data); },
+            handleSaveNews(data) { 
+                this.showLoading('กำลังบันทึก...'); 
+                apiCall('saveNewsData', { newsObject: data }).then(res => this.showSuccess(res.message)).catch(e => this.showError(e.message)); 
+            },
 
-            loadAdminDashboard() { google.script.run.withSuccessHandler(summary => this.renderAdminDashboard(summary)).getAdminDashboardSummary(); },
+            loadAdminDashboard() { 
+                apiCall('getAdminDashboardSummary').then(summary => this.renderAdminDashboard(summary)).catch(e => this.showError(e.message)); 
+            },
 
             renderAdminDashboard(summary) {
                  if(summary.error) { this.adminDashboardContent.innerHTML = 'Error'; return; }
@@ -1084,7 +1118,9 @@
                  this.adminDashboardContent.innerHTML = html;
             },
 
-            loadAgencyDashboard(name) { google.script.run.withSuccessHandler(s => this.renderAgencyDashboard(s, name)).getAgencyProgressSummary(name); },
+            loadAgencyDashboard(name) { 
+                apiCall('getAgencyProgressSummary', { agencyName: name }).then(s => this.renderAgencyDashboard(s, name)).catch(console.error); 
+            },
 
             renderAgencyDashboard(s, name) {
                  this.agencyDashboardContent.innerHTML = `
@@ -1131,7 +1167,7 @@
             },
             
             loadStationDataForEdit(id) {
-                google.script.run.withSuccessHandler(data => {
+                apiCall('getPollingStationData', { stationId: id }).then(data => {
                     Swal.close();
                     if(data) {
                         Object.keys(data).forEach(k => {
@@ -1145,7 +1181,7 @@
                         else { this.isMuslimFoodCheckbox.checked = false; this.toggleMuslimFoodDetails(false); }
                         this.updatePersonnelSummary();
                     }
-                }).getPollingStationData(id);
+                }).catch(e => this.showError(e.message));
             },
             
             handleSave(e) {
@@ -1159,17 +1195,20 @@
                     const id = `${tab.id}_IDCard`; const el = document.getElementById(id);
                     if(el && el.dataset.realValue) data[id] = el.dataset.realValue;
                 });
-                google.script.run.withSuccessHandler(res => {
+                
+                apiCall('savePollingStationData', { dataObject: data }).then(res => {
                     if(res.status==='success') { this.showSuccess('บันทึกแล้ว'); this.showMainPage(); }
                     else this.showError(res.message);
-                }).savePollingStationData(data);
+                }).catch(e => this.showError(e.message));
             },
             
             handleDelete(id) {
                  Swal.fire({ title:'ยืนยันลบ?', showCancelButton:true, confirmButtonColor:'#d33' }).then(r => {
                      if(r.isConfirmed) {
                          this.showLoading('กำลังลบ...');
-                         google.script.run.withSuccessHandler(res => { this.showSuccess('ลบแล้ว'); this.loadStations(); }).deletePollingStation(id);
+                         apiCall('deletePollingStation', { stationId: id }).then(res => { 
+                             this.showSuccess('ลบแล้ว'); this.loadStations(); 
+                         }).catch(e => this.showError(e.message));
                      }
                  });
             },
