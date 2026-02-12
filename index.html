@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกข้อมูลกรรมการประจำหน่วยเลือกตั้ง</title>
+    
+    <!-- Tailwind CSS with Custom Configuration -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        theme: {
+                            50: 'var(--theme-50)',
+                            100: 'var(--theme-100)',
+                            200: 'var(--theme-200)',
+                            300: 'var(--theme-300)',
+                            400: 'var(--theme-400)',
+                            500: 'var(--theme-500)',
+                            600: 'var(--theme-600)',
+                            700: 'var(--theme-700)',
+                            800: 'var(--theme-800)',
+                            900: 'var(--theme-900)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Default Green Theme */
+            --theme-50: #f0fdf4;
+            --theme-100: #dcfce7;
+            --theme-200: #bbf7d0;
+            --theme-300: #86efac;
+            --theme-400: #4ade80;
+            --theme-500: #22c55e;
+            --theme-600: #16a34a;
+            --theme-700: #15803d;
+            --theme-800: #166534;
+            --theme-900: #14532d;
+        }
+
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f0f4f8;
+            color: #334155;
+            font-size: 16px;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: auto;
+        }
+        
+        .btn-primary-custom {
+            background-color: var(--theme-700);
+            color: white;
+            transition: all 0.3s duration;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary-custom:hover {
+            background-color: var(--theme-800);
+            color: white;
+        }
+        
+        .bg-theme-main { background-color: var(--theme-700); }
+        .text-theme-main { color: var(--theme-700); }
+        .border-theme-main { border-color: var(--theme-700); }
+        .hover-bg-theme-dark:hover { background-color: var(--theme-800); }
+        
+        .card-custom {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+        }
+        .form-input-custom {
+            width: 100%;
+            padding: 0.625rem 1rem;
+            font-size: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            transition: all 0.3s;
+        }
+        .form-input-custom:focus {
+            outline: none;
+            border-color: var(--theme-500);
+            box-shadow: 0 0 0 2px var(--theme-200);
+        }
+
+        .tab-active {
+            border-color: var(--theme-700) !important;
+            color: var(--theme-700) !important;
+            background-color: var(--theme-50) !important;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="app-container" class="main-container mx-auto p-4">
+        
+        <!-- Header -->
+        <header id="app-header" class="card-custom mb-4 hidden bg-white border-l-4 border-theme-600">
+             <div class="flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-theme-800">ระบบบันทึกข้อมูลกรรมการประจำหน่วยเลือกตั้ง</h1>
+                    <p id="agency-display" class="text-base text-gray-600"></p>
+                </div>
+                <div class="flex gap-2">
+                     <button id="theme-btn" class="btn bg-gray-200 hover:bg-gray-300 text-gray-700 hidden">
+                        <i class="fa-solid fa-palette"></i>
+                    </button>
+                    <button id="users-manage-btn" class="btn bg-blue-100 hover:bg-blue-200 text-blue-800 hidden">
+                        <i class="fa-solid fa-users-gear mr-1"></i> ผู้ใช้งาน
+                    </button>
+                    <button id="logout-button" class="btn btn-danger">
+                        <i class="fa-solid fa-right-from-bracket mr-2"></i>ออกจากระบบ
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main id="content-area">
+            
+            <!-- LOGIN PAGE -->
+            <div id="login-page" class="hidden">
+                <div class="max-w-md mx-auto mt-10 card-custom">
+                    <div class="text-center mb-6">
+                        <i class="fa-solid fa-user-shield text-5xl text-theme-600 theme-icon mb-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
+                    </div>
+                    <form id="login-form">
+                        <div class="mb-4">
+                            <label for="agency" class="block text-sm font-medium text-gray-700 mb-1">หน่วยงาน</label>
+                            <select id="agency" class="form-input-custom" required>
+                                <!-- Populate by JS -->
+                            </select>
+                        </div>
+                        <div class="mb-4 relative">
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                            <input type="password" id="password" class="form-input-custom pr-10" required>
+                            <i class="fa-solid fa-eye absolute right-3 top-9 text-gray-400 cursor-pointer" id="togglePassword"></i>
+                        </div>
+                        <div class="mb-6 flex items-start">
+                            <input type="checkbox" id="pdpa-checkbox" class="mt-1 mr-2">
+                            <label for="pdpa-checkbox" class="text-sm text-gray-600">
+                                ฉันยอมรับ <a href="#" id="pdpa-policy-link" class="text-theme-600 underline">นโยบายคุ้มครองข้อมูลส่วนบุคคล</a>
+                            </label>
+                        </div>
+                        <button type="submit" class="w-full btn btn-primary-custom py-2 rounded-lg opacity-50" disabled>เข้าสู่ระบบ</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MAIN PAGE (Dashboard & Table) -->
+            <div id="main-page" class="hidden">
+                <div id="main-content" class="card-custom">
+                    <!-- Admin Dashboard Section -->
+                    <div id="admin-dashboard" class="hidden mb-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b pb-2 border-theme-200">
+                             <h3 class="text-xl font-bold text-theme-800 mb-2 sm:mb-0">ภาพรวมความคืบหน้าของทุกหน่วยงาน</h3>
+                             <button id="manage-news-btn" class="text-white btn bg-theme-600 hover:bg-theme-700 shadow-sm" style="display: none;">
+                                <i class="fa-solid fa-bullhorn mr-2"></i>จัดการประกาศ
+                            </button>
+                        </div>
+                        <div id="admin-dashboard-content">
+                            <!-- Summary will be injected here by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Agency Dashboard Section -->
+                    <div id="agency-dashboard" class="hidden mb-6">
+                        <h3 class="text-xl font-bold text-theme-800 mb-4 border-b pb-2 border-theme-200">ภาพรวมความคืบหน้า</h3>
+                        <div id="agency-dashboard-content">
+                            <!-- Agency-specific summary will be injected here by JS -->
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <h2 id="main-view-title" class="text-2xl font-bold text-theme-900">รายการหน่วยเลือกตั้ง</h2>
+                        <div class="flex gap-2">
+                            <button id="view-toggle-btn" class="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm transition-all duration-200">
+                                <i class="fa-solid fa-border-all mr-1"></i> <span>แสดงแบบการ์ด</span>
+                            </button>
+                            <button id="add-new-station-btn" class="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm transition-all duration-200" style="display: none;">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มข้อมูล
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table View -->
+                    <div id="stations-table-view" class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-theme-700 text-white">
+                                <tr>
+                                    <th class="text-center py-3 px-4 uppercase font-semibold text-base w-16">ลำดับ</th>
+                                    <th class="py-3 px-4 uppercase font-semibold text-base">หน่วยที่</th>
+                                    <th class="py-3 px-4 uppercase font-semibold text-base">แขวง</th>
+                                    <th class="py-3 px-4 uppercase font-semibold text-base">สถานที่เลือกตั้ง</th>
+                                    <th class="text-center py-3 px-4 uppercase font-semibold text-base w-16">พิกัด</th>
+                                    <th class="py-3 px-4 uppercase font-semibold text-base w-48">สถานะ</th>
+                                    <th class="text-center py-3 px-4 uppercase font-semibold text-base w-48">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stations-table-body" class="text-gray-700 text-base divide-y divide-gray-100">
+                                <!-- Data populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Grid View -->
+                    <div id="stations-grid-view" class="hidden">
+                        <div id="stations-grid-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                             <!-- Cards populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EDIT FORM PAGE -->
+            <div id="edit-form-page" class="hidden">
+                <div id="edit-form-container" class="card-custom">
+                    <form id="station-form">
+                        <input type="hidden" id="StationID" name="StationID">
+                        
+                        <div class="flex justify-between items-center mb-6 border-b pb-4 border-theme-100">
+                            <h2 id="form-title" class="text-2xl font-bold text-theme-800">เพิ่ม/แก้ไขข้อมูลหน่วยเลือกตั้ง</h2>
+                            <div>
+                                <button type="button" id="back-to-main-btn" class="btn bg-gray-500 hover:bg-gray-600 text-white">
+                                    <i class="fa-solid fa-arrow-left mr-2"></i>กลับ
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Station Info Section -->
+                        <div class="p-5 border border-theme-200 rounded-lg mb-6 bg-theme-50">
+                            <h3 class="font-bold text-xl mb-4 text-theme-800 flex items-center">
+                                <i class="fa-solid fa-circle-info mr-2"></i> ข้อมูลหลักของหน่วยเลือกตั้ง
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                                <div>
+                                    <label for="Agency" class="block text-base font-medium text-theme-900 mb-1">หน่วยงานที่รับผิดชอบ</label>
+                                    <input type="text" id="Agency" name="Agency" class="form-input-custom bg-white" required>
+                                </div>
+                                <div>
+                                    <label for="StationNumber" class="block text-base font-medium text-theme-900 mb-1">หน่วยเลือกตั้งที่</label>
+                                    <input type="text" id="StationNumber" name="StationNumber" class="form-input-custom bg-white" required>
+                                </div>
+                                <div>
+                                    <label for="SubDistrict" class="block text-base font-medium text-theme-900 mb-1">แขวง</label>
+                                    <input type="text" id="SubDistrict" name="SubDistrict" class="form-input-custom bg-white" required>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="Location" class="block text-base font-medium text-theme-900 mb-1">สถานที่เลือกตั้ง</label>
+                                    <input type="text" id="Location" name="Location" class="form-input-custom bg-white" required>
+                                </div>
+                                 <div>
+                                    <label for="Notes" class="block text-base font-medium text-theme-900 mb-1">หมายเหตุ</label>
+                                    <input type="text" id="Notes" name="Notes" class="form-input-custom bg-white">
+                                </div>
+
+                                <!-- Muslim Food Section -->
+                                <div class="md:col-span-3 mt-2 pt-4 border-t border-theme-200">
+                                    <div class="flex items-center mb-3">
+                                        <input type="checkbox" id="IsMuslimFood" name="IsMuslimFood" class="w-5 h-5 text-theme-600 rounded border-gray-300 focus:ring-theme-500 cursor-pointer">
+                                        <label for="IsMuslimFood" class="ml-2 text-base font-medium text-theme-900 cursor-pointer select-none">ต้องการอาหารมุสลิม</label>
+                                        <span class="ml-2 text-sm text-gray-500">(ค่าเริ่มต้น: ไม่ต้องการ)</span>
+                                    </div>
+                                    
+                                    <div id="muslim-food-details" class="hidden ml-0 md:ml-7 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                        <p class="text-sm text-theme-700 font-bold mb-3"><i class="fa-solid fa-utensils mr-1"></i> ระบุจำนวนผู้ที่ต้องการอาหารมุสลิม</p>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label for="MuslimCount1" class="block text-sm font-medium text-gray-700 mb-1">1. กรรมการ</label>
+                                                <div class="relative">
+                                                    <input type="number" id="MuslimCount1" name="MuslimCount1" class="form-input-custom bg-white pl-3 pr-10" placeholder="0">
+                                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                        <span class="text-gray-500 sm:text-sm">คน</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label for="MuslimCount2" class="block text-sm font-medium text-gray-700 mb-1">2. กรรมการออกเสียงประชามติ</label>
+                                                <div class="relative">
+                                                    <input type="number" id="MuslimCount2" name="MuslimCount2" class="form-input-custom bg-white pl-3 pr-10" placeholder="0">
+                                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                        <span class="text-gray-500 sm:text-sm">คน</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Personnel Section Header with Add Button -->
+                        <div class="flex justify-between items-center mt-8 mb-2 pb-2 border-b border-theme-200">
+                             <h3 class="font-bold text-xl text-theme-800 flex items-center">
+                                <i class="fa-solid fa-user-pen mr-2"></i> บันทึก/แก้ไขคณะกรรมการ
+                            </h3>
+                            <button id="add-role-btn" type="button" class="hidden text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors shadow-sm font-medium">
+                                <i class="fas fa-plus mr-1"></i> เพิ่มตำแหน่ง
+                            </button>
+                        </div>
+
+                        <!-- Personnel Data Tabs -->
+                        <div class="mb-0">
+                            <ul class="flex flex-wrap pl-1 gap-1" id="personnel-tabs" role="tablist">
+                                <!-- Tab buttons will be generated by JS -->
+                            </ul>
+                        </div>
+                        
+                        <div id="personnel-tab-content">
+                            <!-- Tab panes will be generated by JS -->
+                        </div>
+
+                        <!-- Personnel Summary Table -->
+                        <div class="mt-8">
+                            <h3 class="font-bold text-xl mb-4 text-theme-800 flex items-center border-b pb-2 border-theme-200">
+                                <i class="fa-solid fa-users-viewfinder mr-2"></i> สรุปรายชื่อคณะกรรมการ
+                            </h3>
+                            <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                                <table class="min-w-full bg-white text-sm text-left text-gray-600">
+                                    <thead class="bg-gray-100 text-theme-800 font-semibold uppercase tracking-wider">
+                                        <tr>
+                                            <th class="py-3 px-4 border-b">ตำแหน่ง</th>
+                                            <th class="py-3 px-4 border-b">ชื่อ-นามสกุล</th>
+                                            <th class="py-3 px-4 border-b">เลขบัตรประชาชน</th>
+                                            <th class="py-3 px-4 border-b">เบอร์โทรศัพท์</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="personnel-summary-body" class="divide-y divide-gray-100">
+                                        <!-- Summary Rows generated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 text-center">
+                          <button type="submit" class="bg-theme-600 hover:bg-theme-700 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition-all transform hover:scale-105 text-lg">
+                            <i class="fas fa-save mr-2"></i> บันทึกข้อมูล
+                          </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Application Logic (Merged JavaScript.html) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const app = {
+            // UI Elements
+            loginPage: document.getElementById('login-page'),
+            mainPage: document.getElementById('main-page'),
+            editFormPage: document.getElementById('edit-form-page'),
+            appHeader: document.getElementById('app-header'),
+            agencyDisplay: document.getElementById('agency-display'),
+            adminDashboard: document.getElementById('admin-dashboard'),
+            adminDashboardContent: document.getElementById('admin-dashboard-content'),
+            agencyDashboard: document.getElementById('agency-dashboard'),
+            agencyDashboardContent: document.getElementById('agency-dashboard-content'),
+            mainViewTitle: document.getElementById('main-view-title'),
+            manageNewsBtn: document.getElementById('manage-news-btn'),
+            usersManageBtn: document.getElementById('users-manage-btn'),
+            themeBtn: document.getElementById('theme-btn'),
+            addRoleBtn: document.getElementById('add-role-btn'),
+            
+            // View Toggle
+            viewToggleBtn: document.getElementById('view-toggle-btn'),
+            stationsTableView: document.getElementById('stations-table-view'),
+            stationsGridView: document.getElementById('stations-grid-view'),
+            stationsGridContainer: document.getElementById('stations-grid-container'),
+            
+            // Forms & Buttons
+            loginForm: document.getElementById('login-form'),
+            logoutButton: document.getElementById('logout-button'),
+            addNewStationBtn: document.getElementById('add-new-station-btn'),
+            backToMainBtn: document.getElementById('back-to-main-btn'),
+            stationForm: document.getElementById('station-form'),
+            loginSubmitBtn: document.querySelector('#login-form button[type="submit"]'),
+
+            // Data Display
+            stationsTableBody: document.getElementById('stations-table-body'),
+            formTitle: document.getElementById('form-title'),
+            personnelSummaryBody: document.getElementById('personnel-summary-body'),
+
+            // Muslim Food Elements
+            isMuslimFoodCheckbox: document.getElementById('IsMuslimFood'),
+            muslimFoodDetails: document.getElementById('muslim-food-details'),
+
+            // State
+            currentUser: null,
+            personnelTabsConfig: [],
+            currentView: 'list', // 'list' or 'grid'
+            themes: {
+                'green':  { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' },
+                'blue':   { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                'red':    { 50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d' },
+                'purple': { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87' },
+                'orange': { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12' },
+            },
+            currentStationsData: [],
+
+            init() {
+                this.loadTheme();
+                this.setupEventListeners();
+                this.loadInitialData();
+                this.adjustTabContainer();
+                if(this.themeBtn) {
+                    this.themeBtn.innerHTML = '<i class="fa-solid fa-cog mr-1"></i> ตั้งค่าระบบ';
+                    this.themeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+                    this.themeBtn.classList.add('bg-orange-100', 'hover:bg-orange-200', 'text-orange-800');
+                }
+            },
+
+            setupEventListeners() {
+                this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+                this.logoutButton.addEventListener('click', () => this.handleLogout());
+                this.addNewStationBtn.addEventListener('click', () => this.showEditForm());
+                this.backToMainBtn.addEventListener('click', () => this.showMainPage());
+                this.stationForm.addEventListener('submit', (e) => this.handleSave(e));
+                this.manageNewsBtn.addEventListener('click', () => this.showNewsManagementModal());          
+                this.viewToggleBtn.addEventListener('click', () => this.toggleView());
+                this.usersManageBtn.addEventListener('click', () => this.showUserManagement());
+                if (this.themeBtn) {
+                        this.themeBtn.addEventListener('click', () => this.showSystemSettings());
+                    }
+                this.addRoleBtn.addEventListener('click', () => this.handleAddNewRole());
+                
+                const pdpaCheckbox = document.getElementById('pdpa-checkbox');
+                if (pdpaCheckbox) pdpaCheckbox.addEventListener('change', () => this.toggleLoginButtonState());
+                const pdpaLink = document.getElementById('pdpa-policy-link');
+                if (pdpaLink) pdpaLink.addEventListener('click', (e) => { e.preventDefault(); this.showPolicyModal(); });
+                const togglePassword = document.getElementById('togglePassword');
+                if (togglePassword) togglePassword.addEventListener('click', () => this.handleTogglePassword());
+
+                if (this.isMuslimFoodCheckbox) {
+                    this.isMuslimFoodCheckbox.addEventListener('change', (e) => this.toggleMuslimFoodDetails(e.target.checked));
+                }
+            },
+
+            toggleMuslimFoodDetails(isChecked) {
+                if (isChecked) {
+                    this.muslimFoodDetails.classList.remove('hidden');
+                } else {
+                    this.muslimFoodDetails.classList.add('hidden');
+                    document.getElementById('MuslimCount1').value = '';
+                    document.getElementById('MuslimCount2').value = '';
+                }
+            },
+
+            showPolicyModal() {
+                Swal.fire({
+                    title: 'นโยบายคุ้มครองข้อมูลส่วนบุคคล',
+                    html: `
+                        <div class="text-left text-sm max-h-80 overflow-y-auto p-4 border rounded-lg bg-gray-50 text-gray-700">
+                            <p class="mb-2 font-bold text-base">นโยบายคุ้มครองข้อมูลส่วนบุคคล (Personal Data Protection Policy)</p>
+                            <p class="mb-4">แอปพลิเคชันนี้ให้ความสำคัญกับการคุ้มครองข้อมูลส่วนบุคคลของท่าน เพื่อให้ท่านมั่นใจได้ว่าข้อมูลที่ท่านได้ให้ไว้จะถูกนำไปใช้ตรงตามความต้องการของท่านและสอดคล้องกับพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 ("PDPA")</p>
+                            <p class="font-bold mb-1">1. การเก็บรวบรวมข้อมูลส่วนบุคคล</p>
+                            <p class="mb-4">เราจะเก็บรวบรวมข้อมูลส่วนบุคคลของท่าน เช่น ชื่อ, นามสกุล, เลขบัตรประชาชน, และเบอร์โทรศัพท์ เพื่อวัตถุประสงค์ในการยืนยันตัวตนและบริหารจัดการข้อมูลกรรมการประจำหน่วยเลือกตั้งเท่านั้น</p>
+                            <p class="font-bold mb-1">2. วัตถุประสงค์ในการใช้ข้อมูล</p>
+                            <p class="mb-2">ข้อมูลของท่านจะถูกใช้เพื่อ:</p>
+                            <ul class="list-disc list-inside ml-4 mb-4 space-y-1">
+                                <li>บริหารจัดการและแสดงผลข้อมูลในระบบนี้</li>
+                                <li>ติดต่อประสานงานที่เกี่ยวข้องกับการปฏิบัติหน้าที่</li>
+                            </ul>
+                            <p class="font-bold mb-1">3. การเปิดเผยข้อมูลส่วนบุคคล</p>
+                            <p class="mb-4">เราจะไม่เปิดเผยข้อมูลส่วนบุคคลของท่านแก่บุคคลภายนอกโดยไม่ได้รับความยินยอมจากท่าน เว้นแต่เป็นไปตามที่กฎหมายกำหนด</p>
+                            <p class="font-bold mb-1">4. การรักษาความปลอดภัยของข้อมูล</p>
+                            <p class="mb-4">เรามีมาตรการรักษาความปลอดภัยที่เหมาะสมเพื่อป้องกันการเข้าถึง, การใช้, หรือการเปิดเผยข้อมูลของท่านโดยไม่ได้รับอนุญาต</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'ปิด',
+                    confirmButtonColor: 'var(--theme-600)',
+                    width: 'clamp(320px, 90vw, 600px)',
+                    customClass: { title: 'text-xl font-bold text-gray-800', popup: 'rounded-xl shadow-2xl' }
+                });
+            },
+
+            showSystemSettings() {
+                this.showLoading('กำลังโหลดการตั้งค่า...');
+                google.script.run.withSuccessHandler(settings => {
+                    settings = settings || { theme: 'green', startTime: '', endTime: '' };
+                    Swal.close();
+                    const colorOptions = Object.keys(this.themes).map(color => {
+                        const bg = this.themes[color][500];
+                        const isSelected = (settings.theme || 'green') === color;
+                        return `<div onclick="app.selectTheme('${color}')" class="cursor-pointer w-12 h-12 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform m-2 border-2 ${isSelected ? 'border-gray-600 ring-2 ring-gray-300' : 'border-transparent'}" style="background-color: ${bg};">${isSelected ? '<i class="fa-solid fa-check text-white"></i>' : ''}</div>`;
+                    }).join('');
+
+                    Swal.fire({
+                        title: 'ตั้งค่าระบบ',
+                        html: `
+                            <div class="text-left space-y-6 px-2">
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2">ธีมสีระบบ</label><div class="flex flex-wrap justify-center bg-gray-50 p-2 rounded-lg border border-gray-200">${colorOptions}</div></div>
+                                <hr class="border-gray-200">
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2"><i class="fa-solid fa-clock mr-1"></i> เวลาเปิด-ปิดระบบ (สำหรับผู้ใช้ทั่วไป)</label>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div><label class="block text-xs text-gray-500 mb-1">เวลาเปิด</label><input type="datetime-local" id="system-start" class="swal2-input m-0 w-full text-base" value="${settings.startTime || ''}"></div>
+                                        <div><label class="block text-xs text-gray-500 mb-1">เวลาปิด</label><input type="datetime-local" id="system-end" class="swal2-input m-0 w-full text-base" value="${settings.endTime || ''}"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">* หากไม่ระบุเวลา ระบบจะเปิดตลอด 24 ชม.</p>
+                                </div>
+                            </div>`,
+                        width: '500px',
+                        showCancelButton: true,
+                        confirmButtonText: 'บันทึกการตั้งค่า',
+                        confirmButtonColor: 'var(--theme-600)',
+                        preConfirm: () => { return { startTime: document.getElementById('system-start').value, endTime: document.getElementById('system-end').value } }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.showLoading('กำลังบันทึก...');
+                            google.script.run.withSuccessHandler(res => this.showSuccess(res.message)).saveTimeSettings(result.value.startTime, result.value.endTime);
+                        }
+                    });
+                }).getSystemSettings();
+            },
+
+            selectTheme(color) {
+                this.applyTheme(color);
+                google.script.run.saveThemeSettings(color);
+            },
+
+            loadTheme() {
+                google.script.run.withSuccessHandler(settings => { this.applyTheme(settings.theme || 'green'); }).getThemeSettings();
+            },
+
+            applyTheme(colorName) {
+                const colors = this.themes[colorName] || this.themes['green'];
+                const root = document.documentElement;
+                for (const [key, value] of Object.entries(colors)) { root.style.setProperty(`--theme-${key}`, value); }
+                
+                const loginBtn = document.querySelector('#login-form button[type="submit"]');
+                if (loginBtn) {
+                    loginBtn.classList.remove('bg-green-600', 'hover:bg-green-700', 'bg-blue-600', 'hover:bg-blue-700', 'bg-red-600', 'hover:bg-red-700');
+                    loginBtn.style.backgroundColor = colors[600];
+                    loginBtn.onmouseenter = () => loginBtn.style.backgroundColor = colors[700];
+                    loginBtn.onmouseleave = () => loginBtn.style.backgroundColor = colors[600];
+                }
+                
+                const pdpaLink = document.getElementById('pdpa-policy-link');
+                if(pdpaLink) { pdpaLink.classList.remove('text-green-600'); pdpaLink.style.color = colors[600]; }
+                
+                const loginPage = document.getElementById('login-page');
+                if (loginPage) {
+                    let brandIcon = loginPage.querySelector('.theme-icon');
+                    if (!brandIcon) {
+                        const icons = loginPage.querySelectorAll('i');
+                        for (const icon of icons) {
+                            if (icon.id === 'togglePassword' || icon.classList.contains('fa-eye') || icon.classList.contains('fa-eye-slash')) continue;
+                            if (icon.classList.contains('text-green-600') || icon.classList.contains('text-5xl') || icon.classList.contains('text-6xl') || icon.classList.contains('fa-solid')) {
+                                brandIcon = icon; brandIcon.classList.add('theme-icon'); break; 
+                            }
+                        }
+                    }
+                    if (brandIcon) { brandIcon.classList.remove('text-green-600'); brandIcon.style.color = colors[600]; }
+                }
+                
+                const swalConfirm = document.querySelector('.swal2-confirm');
+                if(swalConfirm) { swalConfirm.style.backgroundColor = colors[600]; }
+            },
+
+            toggleView() {
+                this.currentView = this.currentView === 'list' ? 'grid' : 'list';
+                this.updateViewUI();
+            },
+
+            updateViewUI() {
+                const icon = this.viewToggleBtn.querySelector('i');
+                const text = this.viewToggleBtn.querySelector('span');
+                
+                if (this.currentView === 'grid') {
+                    this.stationsTableView.classList.add('hidden');
+                    this.stationsGridView.classList.remove('hidden');
+                    icon.className = 'fa-solid fa-list';
+                    text.textContent = 'แสดงแบบรายการ';
+                    this.renderStationsCard(this.currentStationsData);
+                } else {
+                    this.stationsTableView.classList.remove('hidden');
+                    this.stationsGridView.classList.add('hidden');
+                    icon.className = 'fa-solid fa-border-all';
+                    text.textContent = 'แสดงแบบการ์ด';
+                    this.renderStationsTable(this.currentStationsData);
+                }
+            },
+
+            showUserManagement() {
+                this.showLoading('กำลังโหลดข้อมูลผู้ใช้...');
+                google.script.run.withSuccessHandler(users => {
+                    Swal.close();
+                    this.renderUserManagementModal(users);
+                }).getAllUsers();
+            },
+
+            renderUserManagementModal(users) {
+                let tableHtml = `
+                    <div class="overflow-x-auto max-h-[60vh]">
+                    <table class="w-full text-sm text-left text-gray-500 mb-4">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10">
+                            <tr>
+                                <th class="px-4 py-3">หน่วยงาน</th>
+                                <th class="px-4 py-3 text-center">สิทธิ์แก้ไข</th>
+                                <th class="px-4 py-3 text-center">กรณีพิเศษ (เวลา)</th>
+                                <th class="px-4 py-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                users.forEach(user => {
+                    const isSystem = user.username === 'Administrator';
+                    const toggleId = `toggle-edit-${user.username}`;
+                    const timeToggleId = `toggle-time-${user.username}`;
+                    
+                    tableHtml += `
+                        <tr class="bg-white border-b hover:bg-gray-50">
+                            <td class="px-4 py-3 font-medium text-gray-900">${user.username}</td>
+                            <td class="px-4 py-3 text-center">
+                                ${!isSystem ? `
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in" title="เปิด/ปิด สิทธิ์การแก้ไขข้อมูล">
+                                    <input type="checkbox" name="toggle" id="${toggleId}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer" ${user.canEdit ? 'checked' : ''} onclick="app.toggleUserEdit('${user.username}', this.checked)"/>
+                                    <label for="${toggleId}" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                                ` : '<span class="text-green-600 font-bold"><i class="fa-solid fa-check"></i></span>'}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                ${!isSystem ? `
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in" title="ปลดล็อคให้บันทึกได้ตลอดเวลา (ไม่สนเวลาเปิด-ปิดระบบ)">
+                                    <input type="checkbox" name="toggle-time" id="${timeToggleId}" class="toggle-checkbox-time absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer" ${user.ignoreTime ? 'checked' : ''} onclick="app.toggleTimeOverride('${user.username}', this.checked)"/>
+                                    <label for="${timeToggleId}" class="toggle-label-time block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                                ` : '<span class="text-gray-400">-</span>'}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                ${!isSystem ? `
+                                <button onclick="app.editUser('${user.username}', '${user.password}')" class="text-blue-600 hover:text-blue-800 mr-2" title="เปลี่ยนรหัสผ่าน"><i class="fas fa-key"></i></button>
+                                <button onclick="app.deleteUser('${user.username}')" class="text-red-600 hover:text-red-800" title="ลบผู้ใช้"><i class="fas fa-trash"></i></button>
+                                ` : '<span class="text-gray-400 italic">System</span>'}
+                            </td>
+                        </tr>`;
+                });
+                tableHtml += `</tbody></table></div>
+                    <style>
+                        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+                        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+                        .toggle-checkbox { right: 50%; border-color: #CBD5E0; transition: all 0.3s; top: 0; bottom: 0; margin: auto;} 
+                        .toggle-label { width: 40px; }
+                        .toggle-checkbox-time:checked { right: 0; border-color: #F6AD55; }
+                        .toggle-checkbox-time:checked + .toggle-label-time { background-color: #F6AD55; }
+                        .toggle-checkbox-time { right: 50%; border-color: #CBD5E0; transition: all 0.3s; top: 0; bottom: 0; margin: auto;} 
+                        .toggle-label-time { width: 40px; }
+                    </style>
+                    <button onclick="app.addUser()" class="w-full btn btn-primary-custom py-2 rounded-lg mt-2">
+                        <i class="fas fa-plus mr-2"></i> เพิ่มผู้ใช้งานใหม่
+                    </button>`;
+
+                Swal.fire({ title: 'จัดการผู้ใช้งาน', html: tableHtml, width: '800px', showConfirmButton: false, showCloseButton: true });
+            },
+
+            toggleUserEdit(username, canEdit) {
+                google.script.run.withSuccessHandler(res => { if(res.status !== 'success') this.showError(res.message); }).toggleUserStatus(username, canEdit);
+            },
+
+            toggleTimeOverride(username, ignoreTime) {
+                google.script.run.withSuccessHandler(res => { if(res.status !== 'success') this.showError(res.message); }).toggleUserTimeOverride(username, ignoreTime);
+            },
+
+            addUser() {
+                Swal.fire({
+                    title: 'เพิ่มผู้ใช้งานใหม่',
+                    html: `<input id="new-user" class="swal2-input" placeholder="ชื่อหน่วยงาน"><input id="new-pass" type="text" class="swal2-input" placeholder="รหัสผ่าน">`,
+                    showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: 'var(--theme-600)',
+                    preConfirm: () => { return { user: document.getElementById('new-user').value, pass: document.getElementById('new-pass').value } }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const { user, pass } = result.value;
+                        if(!user || !pass) return Swal.fire('Error', 'กรุณากรอกข้อมูลให้ครบ', 'error');
+                        this.showLoading('กำลังบันทึก...');
+                        google.script.run.withSuccessHandler(res => {
+                            if(res.status === 'success') { this.showSuccess(res.message); this.showUserManagement(); } else { this.showError(res.message); }
+                        }).saveUser(user, pass, false, null, true);
+                    }
+                });
+            },
+
+            editUser(oldUser, oldPass) {
+                 Swal.fire({
+                    title: `เปลี่ยนรหัสผ่าน: ${oldUser}`,
+                    html: `<input id="edit-user" class="swal2-input" value="${oldUser}" readonly disabled style="background-color: #f3f4f6;"><input id="edit-pass" type="text" class="swal2-input" value="${oldPass}" placeholder="รหัสผ่านใหม่">`,
+                    showCancelButton: true, confirmButtonText: 'อัปเดต', confirmButtonColor: 'var(--theme-600)',
+                    preConfirm: () => { return { user: document.getElementById('edit-user').value, pass: document.getElementById('edit-pass').value } }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const { user, pass } = result.value;
+                        if(!pass) return Swal.fire('Error', 'กรุณากรอกรหัสผ่าน', 'error');
+                        this.showLoading('กำลังอัปเดต...');
+                        google.script.run.withSuccessHandler(res => {
+                            if(res.status === 'success') { this.showSuccess(res.message); this.showUserManagement(); } else { this.showError(res.message); }
+                        }).saveUser(user, pass, true, oldUser, true); 
+                    }
+                });
+            },
+
+            deleteUser(username) {
+                Swal.fire({
+                    title: 'ยืนยันการลบ', text: `คุณต้องการลบผู้ใช้ ${username} หรือไม่?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบ'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.showLoading('กำลังลบ...');
+                        google.script.run.withSuccessHandler(res => {
+                            if(res.status === 'success') { this.showSuccess(res.message); this.showUserManagement(); } else { this.showError(res.message); }
+                        }).deleteUser(username);
+                    }
+                });
+            },
+
+            handleAddNewRole() {
+                Swal.fire({
+                    title: 'เพิ่มตำแหน่งใหม่', input: 'text', inputLabel: 'ชื่อตำแหน่ง (เช่น กรรมการ 9)', inputPlaceholder: 'ระบุชื่อตำแหน่ง...', showCancelButton: true, confirmButtonText: 'เพิ่ม', confirmButtonColor: 'var(--theme-600)',
+                    preConfirm: (roleTitle) => { if (!roleTitle) { Swal.showValidationMessage('กรุณาระบุชื่อตำแหน่ง'); } return roleTitle; }
+                }).then((result) => {
+                    if (result.isConfirmed && result.value) {
+                        this.showLoading('กำลังเพิ่มตำแหน่ง...');
+                        google.script.run.withSuccessHandler(response => {
+                            if (response.status === 'success') {
+                                this.showSuccess(response.message);
+                                this.loadInitialData();
+                                setTimeout(() => { this.generatePersonnelTabs(); this.updatePersonnelSummary(); }, 1000);
+                            } else { this.showError(response.message); }
+                        }).addNewPersonnelRole(result.value);
+                    }
+                });
+            },
+
+            showNewsPopup(news) {
+                Swal.fire({
+                    html: `
+                        <div class="text-left">
+                            <div class="bg-gradient-to-r from-theme-600 to-theme-400 p-4 rounded-t-lg -mt-5 -mx-5 mb-4">
+                                 <h2 class="text-2xl font-bold text-white flex items-center"><i class="fa-solid fa-bullhorn mr-3"></i>ประกาศข่าวสาร</h2>
+                            </div>
+                            <h3 class="text-xl font-bold text-theme-800 mb-2">${news.title}</h3>
+                            <div class="text-base text-gray-600 leading-relaxed border-t pt-3 max-h-[50vh] overflow-y-auto">${news.content}</div>
+                        </div>
+                    `,
+                    confirmButtonText: 'รับทราบ', confirmButtonColor: 'var(--theme-600)',
+                    didOpen: () => { const btn = Swal.getConfirmButton(); btn.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-600'); },
+                    width: '600px', padding: '1.5em', customClass: { popup: 'rounded-xl shadow-2xl' }
+                });
+            },
+
+            loadInitialData() {
+                this.showLoading('กำลังเริ่มต้นระบบ...');
+                google.script.run.withSuccessHandler(roles => {
+                    this.personnelTabsConfig = roles;
+                    this.generatePersonnelTabs();
+                    google.script.run.withSuccessHandler(agencies => {
+                        this.populateAgencyDropdown(agencies);
+                        this.checkLoginState();
+                        Swal.close();
+                    }).getAgencyList();
+                }).getPersonnelRoles();
+            },
+            
+            populateAgencyDropdown(agencies) {
+                const select = document.getElementById('agency');
+                if (!select) return;
+                select.innerHTML = '';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = ''; defaultOption.textContent = '— เลือกหน่วยงาน —'; defaultOption.disabled = true; defaultOption.selected = true;
+                select.appendChild(defaultOption);
+                agencies.forEach(agencyName => {
+                    if(agencyName !== 'Administrator') {
+                        const option = document.createElement('option'); option.value = agencyName; option.textContent = agencyName; select.appendChild(option);
+                    }
+                });
+                 const adminOpt = document.createElement('option'); adminOpt.value = 'Administrator'; adminOpt.textContent = 'Administrator'; select.appendChild(adminOpt);
+            },
+
+            checkLoginState() {
+                const loggedInAgency = sessionStorage.getItem('loggedInAgency');
+                if (loggedInAgency) {
+                    this.currentUser = loggedInAgency;
+                    this.showMainPage();
+                } else {
+                    this.showLoginPage();
+                    this.toggleLoginButtonState();
+                    this.loadAndShowNewsPopup();
+                }
+            },
+            
+            showLoginPage() {
+                this.mainPage.classList.add('hidden');
+                this.editFormPage.classList.add('hidden');
+                this.appHeader.classList.add('hidden');
+                this.loginPage.classList.remove('hidden');
+                this.currentUser = null;
+                sessionStorage.removeItem('loggedInAgency');
+            },
+
+            showMainPage() {
+                this.loginPage.classList.add('hidden');
+                this.editFormPage.classList.add('hidden');
+                this.mainPage.classList.remove('hidden');
+                this.appHeader.classList.remove('hidden');
+                this.agencyDisplay.textContent = `หน่วยงาน: ${this.currentUser}`;
+                
+                if (this.currentUser === 'Administrator') {
+                    this.addNewStationBtn.style.display = 'inline-block';
+                    this.manageNewsBtn.style.display = 'inline-block';
+                    this.usersManageBtn.classList.remove('hidden');
+                    this.themeBtn.classList.remove('hidden');
+                    this.adminDashboard.classList.remove('hidden');
+                    this.agencyDashboard.classList.add('hidden');
+                    this.mainViewTitle.textContent = 'รายการหน่วยเลือกตั้งทั้งหมด';
+                    this.loadAdminDashboard();
+                } else {
+                    this.addNewStationBtn.style.display = 'none';
+                    this.manageNewsBtn.style.display = 'none';
+                    this.usersManageBtn.classList.add('hidden');
+                    this.themeBtn.classList.add('hidden');
+                    this.adminDashboard.classList.add('hidden');
+                    this.agencyDashboard.classList.remove('hidden');
+                    this.mainViewTitle.textContent = 'รายการหน่วยเลือกตั้งในความรับผิดชอบ';
+                    this.loadAgencyDashboard(this.currentUser);
+                }
+                this.loadStations();
+            },
+
+            loadStations() {
+                const loaderHtml = `<tr><td colspan="7" class="text-center py-10"><i class="fa-solid fa-spinner fa-spin text-2xl text-theme-700"></i><p class="mt-2">กำลังโหลดข้อมูล...</p></td></tr>`;
+                this.stationsTableBody.innerHTML = loaderHtml;
+                this.stationsGridContainer.innerHTML = `<div class="col-span-full text-center py-10"><i class="fa-solid fa-spinner fa-spin text-2xl text-theme-700"></i><p class="mt-2">กำลังโหลดข้อมูล...</p></div>`;
+
+                google.script.run.withSuccessHandler(stations => {
+                        this.currentStationsData = stations;
+                        this.updateViewUI();
+                    }).getPollingStations(this.currentUser);
+            },
+
+            renderStationsTable(stations) {
+                if (!stations || stations.length === 0) {
+                    this.stationsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-10">ไม่พบข้อมูลหน่วยเลือกตั้ง</td></tr>`; return;
+                }
+                let html = '';
+                stations.forEach((station, index) => {
+                    const progress = station.progress || 0;
+                    const progressBarColor = progress < 50 ? 'bg-yellow-500' : progress < 100 ? 'bg-blue-500' : 'bg-green-500';
+                    const progressBarHtml = `
+                        <div class="flex items-center">
+                            <span class="text-sm font-medium w-12 text-right pr-2">${progress}%</span>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="${progressBarColor} h-2.5 rounded-full" style="width: ${progress}%"></div>
+                            </div>
+                        </div>`;
+                    const mapLink = station.MapLink ? 
+                        `<a href="${station.MapLink}" target="_blank" class="text-theme-600 hover:text-theme-800 transition-colors" title="ดูแผนที่"><i class="fa-solid fa-map-location-dot text-xl"></i></a>` : 
+                        `<span class="text-gray-300" title="ไม่มีข้อมูลพิกัด"><i class="fa-solid fa-map-location-dot text-xl"></i></span>`;
+
+                    html += `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="text-center py-3 px-4">${index + 1}</td>
+                            <td class="text-center py-3 px-4" style="width: 100px">${station.StationNumber}</td>
+                            <td class="py-3 px-4" style="width: 150px">${station.SubDistrict}</td>
+                            <td class="py-3 px-4">${station.Location}</td>
+                            <td class="text-center py-3 px-4">${mapLink}</td>
+                            <td class="py-3 px-4 align-middle">${progressBarHtml}</td>
+                            <td class="text-center py-3 px-4">
+                                <button class="text-blue-800 hover:text-blue-900 mx-1 font-medium transition-colors" onclick="app.showEditForm('${station.StationID}')"><i class="fa-solid fa-pencil mr-1"></i>แก้ไข</button>
+                                ${this.currentUser === 'Administrator' ? `<button class="text-red-700 hover:text-red-900 mx-1 font-medium transition-colors" onclick="app.handleDelete('${station.StationID}')"><i class="fa-solid fa-trash mr-1"></i>ลบ</button>` : ''}
+                            </td>
+                        </tr>`;
+                });
+                this.stationsTableBody.innerHTML = html;
+            },
+
+            renderStationsCard(stations) {
+                 if (!stations || stations.length === 0) { this.stationsGridContainer.innerHTML = `<div class="col-span-full text-center py-10">ไม่พบข้อมูลหน่วยเลือกตั้ง</div>`; return; }
+                let html = '';
+                stations.forEach((station) => {
+                    const progress = station.progress || 0;
+                    const isComplete = progress === 100;
+                    const cardBgClass = isComplete ? 'bg-theme-100 border-theme-200' : 'bg-white border-gray-100';
+                    const statusColor = isComplete ? 'text-green-600' : progress > 0 ? 'text-blue-600' : 'text-gray-400';
+                    const subDistrictDisplay = station.SubDistrict.startsWith('แขวง') ? station.SubDistrict : `แขวง${station.SubDistrict}`;
+                    const mapBtn = station.MapLink ? `<a href="${station.MapLink}" target="_blank" class="text-theme-500 hover:text-theme-700 ml-2" title="ดูแผนที่"><i class="fa-solid fa-map-location-dot"></i></a>` : '';
+
+                    html += `
+                        <div class="${cardBgClass} rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all border">
+                            <div class="p-5">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div><span class="font-bold uppercase tracking-wider text-gray-500">หน่วยเลือกตั้งที่</span><h3 class="text-3xl font-bold text-theme-700">${station.StationNumber}</h3></div>
+                                    <div class="bg-white/80 rounded-full p-2 shadow-sm"><i class="fa-solid fa-building-user text-theme-500 text-xl"></i></div>
+                                </div>
+                                <div class="space-y-2 mb-4">
+                                    <p class="text-sm text-gray-700 font-medium"><i class="fa-solid fa-map-location-dot w-5 text-center mr-1 text-gray-400"></i> ${subDistrictDisplay}</p>
+                                    <p class="text-sm text-gray-600 truncate"><i class="fa-solid fa-location-dot w-5 text-center mr-1 text-gray-400"></i> ${station.Location} ${mapBtn}</p>
+                                </div>
+                                <div class="mb-4">
+                                    <div class="flex justify-between text-xs mb-1"><span class="font-semibold text-gray-500">ความคืบหน้า</span><span class="font-bold ${statusColor}">${progress}%</span></div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2"><div class="h-2 rounded-full ${isComplete ? 'bg-green-500' : 'bg-theme-500'}" style="width: ${progress}%"></div></div>
+                                </div>
+                                <div class="flex gap-2 pt-3 border-t border-gray-200/60">
+                                    <button onclick="app.showEditForm('${station.StationID}')" class="flex-grow py-2 px-4 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm transition-colors text-center"><i class="fa-solid fa-pencil mr-1"></i> แก้ไข</button>
+                                    ${this.currentUser === 'Administrator' ? `<button onclick="app.handleDelete('${station.StationID}')" class="flex-none w-10 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                this.stationsGridContainer.innerHTML = html;
+            },
+            
+            handleLogin(event) {
+                event.preventDefault();
+                const agency = document.getElementById('agency').value;
+                const password = document.getElementById('password').value;
+                this.showLoading('กำลังตรวจสอบ...');
+                google.script.run.withSuccessHandler(response => {
+                    Swal.close();
+                    if (response.status === 'success') {
+                        this.currentUser = response.agency;
+                        sessionStorage.setItem('loggedInAgency', response.agency);
+                        this.showMainPage();
+                    } else { this.showError(response.message); }
+                }).login(agency, password);
+            },
+            
+            handleLogout() { sessionStorage.removeItem('loggedInAgency'); this.checkLoginState(); },
+            
+            adjustTabContainer() {
+                const tabList = document.getElementById('personnel-tabs');
+                if (tabList && tabList.parentElement) tabList.parentElement.classList.remove('mb-4', 'border-b', 'border-gray-200');
+            },
+
+            showLoading(title) { Swal.fire({ title: title, allowOutsideClick: false, didOpen: () => Swal.showLoading() }); },
+            showError(message) { Swal.fire({ icon: 'error', title: 'แจ้งเตือน', html: message, confirmButtonColor: '#d33' }); },
+            showSuccess(message) { Swal.fire({ icon: 'success', title: 'สำเร็จ', text: message, timer: 1500, showConfirmButton: false }); },
+            
+            generatePersonnelTabs() {
+                const tabContainer = document.getElementById('personnel-tabs');
+                const contentContainer = document.getElementById('personnel-tab-content');
+                if (!this.personnelTabsConfig) { tabContainer.innerHTML = ''; return; }
+
+                let tabHtml = ''; let contentHtml = '';
+
+                this.personnelTabsConfig.forEach((tab) => {
+                    tabHtml += `
+                        <li class="mr-1" role="presentation">
+                            <button class="inline-block p-3 rounded-t-lg text-base bg-gray-100 text-gray-500 border-t border-l border-r border-gray-300 transition-colors" id="tab-btn-${tab.id}" type="button" role="tab" onclick="app.activateTab('${tab.id}')">${tab.title}</button>
+                        </li>`;
+                    contentHtml += `
+                        <div class="hidden p-4 bg-white border border-gray-300 rounded-b-lg" id="tab-pane-${tab.id}" role="tabpanel">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                               <div><label class="block text-base font-medium text-gray-700 mb-1">คำนำหน้า</label><input type="text" id="${tab.id}_Prefix" name="${tab.id}_Prefix" class="form-input-custom bg-white" placeholder="นาย/นาง/น.ส." onkeyup="app.updatePersonnelSummary()"></div>
+                               <div><label class="block text-base font-medium text-gray-700 mb-1">ชื่อ</label><input type="text" id="${tab.id}_FirstName" name="${tab.id}_FirstName" class="form-input-custom bg-white" onkeyup="app.updatePersonnelSummary()"></div>
+                               <div><label class="block text-base font-medium text-gray-700 mb-1">นามสกุล</label><input type="text" id="${tab.id}_LastName" name="${tab.id}_LastName" class="form-input-custom bg-white" onkeyup="app.updatePersonnelSummary()"></div>
+                               <div class="md:col-span-1"><label class="block text-base font-medium text-gray-700 mb-1">เลขบัตรประชาชน</label><input type="text" id="${tab.id}_IDCard" name="${tab.id}_IDCard" class="form-input-custom bg-white" maxlength="13" onfocus="app.unmaskField(this)" onblur="app.maskField(this); app.updatePersonnelSummary()"></div>
+                               <div class="md:col-span-1"><label class="block text-base font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label><input type="tel" id="${tab.id}_Phone" name="${tab.id}_Phone" class="form-input-custom bg-white" placeholder="0XXXXXXXXX" onkeyup="app.updatePersonnelSummary()"></div>
+                            </div>
+                        </div>`;
+                });
+                tabContainer.innerHTML = tabHtml; contentContainer.innerHTML = contentHtml;
+                this.updatePersonnelSummary();
+            },
+            
+            updatePersonnelSummary() {
+                if (!this.personnelSummaryBody || !this.personnelTabsConfig) return;
+                let html = '';
+                this.personnelTabsConfig.forEach(tab => {
+                    const prefix = document.getElementById(`${tab.id}_Prefix`)?.value || '';
+                    const fname = document.getElementById(`${tab.id}_FirstName`)?.value || '';
+                    const lname = document.getElementById(`${tab.id}_LastName`)?.value || '';
+                    const idCardRaw = document.getElementById(`${tab.id}_IDCard`)?.value || '';
+                    const phone = document.getElementById(`${tab.id}_Phone`)?.value || '';
+                    
+                    const fullName = `${prefix} ${fname} ${lname}`.trim();
+                    const isFilled = fullName !== '';
+                    
+                    html += `
+                        <tr class="${isFilled ? 'bg-white' : 'bg-gray-50 text-gray-400'} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td class="py-3 px-4 font-medium">${tab.title}</td>
+                            <td class="py-3 px-4">${fullName || '-'}</td>
+                            <td class="py-3 px-4 font-mono text-xs">${idCardRaw || '-'}</td>
+                            <td class="py-3 px-4">${phone || '-'}</td>
+                        </tr>`;
+                });
+                this.personnelSummaryBody.innerHTML = html;
+            },
+
+            activateTab(tabId) {
+                this.personnelTabsConfig.forEach(tab => {
+                    const btn = document.getElementById(`tab-btn-${tab.id}`);
+                    const pane = document.getElementById(`tab-pane-${tab.id}`);
+                    if (tab.id === tabId) {
+                        btn.classList.add('tab-active'); btn.classList.remove('bg-gray-100', 'text-gray-500'); btn.style.marginBottom = '-1px'; pane.classList.remove('hidden');
+                    } else {
+                        btn.classList.remove('tab-active'); btn.classList.add('bg-gray-100', 'text-gray-500'); btn.style.marginBottom = '0px'; pane.classList.add('hidden');
+                    }
+                });
+            },
+            
+            loadAndShowNewsPopup() { google.script.run.withSuccessHandler(news => { if (news && news.isEnabled) this.showNewsPopup(news); }).getNewsData(); },
+            
+            showNewsManagementModal() {
+                 this.showLoading('กำลังโหลดข้อมูลประกาศ...');
+                 google.script.run.withSuccessHandler(news => {
+                     Swal.close();
+                     Swal.fire({
+                         title: 'จัดการประกาศข่าวสาร',
+                         html: `
+                            <div class="text-left space-y-4 p-2">
+                                 <div><label class="block font-medium">หัวข้อ</label><input id="news-title" class="swal2-input" style="width: 100%; box-sizing: border-box; margin-top: 5px;" value="${news.title}"></div>
+                                 <div><label class="block font-medium">เนื้อหา</label><textarea id="news-content" class="swal2-textarea" style="width: 100%; box-sizing: border-box; margin-top: 5px;" rows="5">${news.content}</textarea></div>
+                                 <div><input id="news-enabled" type="checkbox" ${news.isEnabled ? 'checked' : ''}> <label>เปิดใช้งาน</label></div>
+                            </div>
+                         `,
+                         width: 'clamp(320px, 90vw, 600px)', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: 'var(--theme-600)',
+                         preConfirm: () => { return { title: document.getElementById('news-title').value, content: document.getElementById('news-content').value, isEnabled: document.getElementById('news-enabled').checked }; }
+                     }).then(res => { if(res.isConfirmed) { this.handleSaveNews(res.value); } });
+                 }).getNewsData();
+            },
+
+            handleSaveNews(data) { this.showLoading('กำลังบันทึก...'); google.script.run.withSuccessHandler(res => this.showSuccess(res.message)).saveNewsData(data); },
+
+            loadAdminDashboard() { google.script.run.withSuccessHandler(summary => this.renderAdminDashboard(summary)).getAdminDashboardSummary(); },
+
+            renderAdminDashboard(summary) {
+                 if(summary.error) { this.adminDashboardContent.innerHTML = 'Error'; return; }
+                 
+                 let totalStationsSum = 0; let completedStationsSum = 0;
+                 summary.forEach(agency => { totalStationsSum += agency.totalStations; completedStationsSum += agency.completedStations; });
+                 const overallPercent = totalStationsSum > 0 ? Math.round((completedStationsSum / totalStationsSum) * 100) : 0;
+
+                 let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+                 html += `
+                 <div class="bg-gradient-to-br from-theme-600 to-theme-800 rounded-xl shadow-lg border border-theme-600 p-6 text-white relative overflow-hidden group">
+                    <div class="absolute right-0 top-0 p-4 opacity-20 group-hover:opacity-30 transition-opacity transform rotate-12 scale-150"><i class="fa-solid fa-globe text-9xl text-white"></i></div>
+                    <div class="relative z-10">
+                        <h4 class="text-xl font-bold mb-1 flex items-center"><i class="fa-solid fa-chart-pie mr-2"></i>ภาพรวมทั้งหมด</h4>
+                        <p class="text-theme-100 text-sm mb-6">ความคืบหน้าของทุกหน่วยงานรวมกัน</p>
+                        <p class="text-sm font-medium mb-1 opacity-90">บันทึกแล้ว: ${completedStationsSum} / ${totalStationsSum} หน่วย</p>
+                        <div class="flex justify-between items-end mb-2"><span class="text-3xl font-bold">${overallPercent}%</span></div>
+                        <div class="w-full bg-theme-900/40 rounded-full h-3 backdrop-blur-sm"><div class="bg-white h-3 rounded-full shadow-lg transition-all duration-1000 ease-out" style="width: ${overallPercent}%"></div></div>
+                    </div>
+                 </div>`;
+
+                 summary.forEach(a => {
+                     html += `
+                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all p-6">
+                        <h4 class="text-lg font-bold text-gray-800 mb-2">${a.agencyName}</h4>
+                        <p class="text-sm text-gray-500 mb-8">บันทึกแล้ว: ${a.completedStations} / ${a.totalStations} หน่วย</p>
+                        <div>
+                            <div class="flex justify-between items-end mb-2"><span class="text-sm font-semibold text-gray-700">ความคืบหน้า</span><span class="text-sm font-bold text-gray-800">${a.overallProgress}%</span></div>
+                            <div class="w-full bg-gray-100 rounded-full h-3"><div class="bg-theme-600 h-3 rounded-full transition-all duration-500" style="width: ${a.overallProgress}%"></div></div>
+                        </div>
+                     </div>`;
+                 });
+                 html += '</div>';
+                 this.adminDashboardContent.innerHTML = html;
+            },
+
+            loadAgencyDashboard(name) { google.script.run.withSuccessHandler(s => this.renderAgencyDashboard(s, name)).getAgencyProgressSummary(name); },
+
+            renderAgencyDashboard(s, name) {
+                 this.agencyDashboardContent.innerHTML = `
+                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-md">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">${name}</h3>
+                    <p class="text-sm text-gray-500 mb-8">บันทึกแล้ว: ${s.completedStations} / ${s.totalStations} หน่วย</p>
+                    <div>
+                        <div class="flex justify-between items-end mb-2"><span class="text-sm font-semibold text-gray-700">ความคืบหน้า</span><span class="text-sm font-bold text-gray-800">${s.overallProgress}%</span></div>
+                        <div class="w-full bg-gray-100 rounded-full h-3"><div class="bg-theme-600 h-3 rounded-full transition-all duration-500" style="width: ${s.overallProgress}%"></div></div>
+                    </div>
+                 </div>`;
+            },
+
+            showEditForm(id=null) {
+                 this.showLoading('กำลังโหลด...');
+                 
+                 this.loginPage.classList.add('hidden'); this.mainPage.classList.add('hidden'); this.editFormPage.classList.remove('hidden');
+                 this.stationForm.reset(); document.getElementById('StationID').value = ''; this.activateTab(this.personnelTabsConfig[0]?.id);
+                 this.isMuslimFoodCheckbox.checked = false; this.toggleMuslimFoodDetails(false);
+
+                 const mainFields = ['Agency', 'StationNumber', 'SubDistrict', 'Location'];
+                 [...mainFields, 'Notes'].forEach(fid => {
+                     const el = document.getElementById(fid);
+                     if(el) { el.readOnly = false; el.classList.remove('bg-gray-200', 'cursor-not-allowed', 'bg-slate-50', 'text-gray-500'); el.classList.add('bg-white', 'text-gray-900'); }
+                 });
+
+                 if (this.currentUser !== 'Administrator') {
+                     mainFields.forEach(fid => {
+                         const el = document.getElementById(fid);
+                         if(el) { el.readOnly = true; el.classList.remove('bg-white', 'text-gray-900'); el.classList.add('bg-gray-200', 'cursor-not-allowed', 'text-gray-600'); }
+                     });
+                     const agencyEl = document.getElementById('Agency'); if(agencyEl) agencyEl.value = this.currentUser;
+                     if (this.addRoleBtn) this.addRoleBtn.classList.add('hidden');
+                 } else {
+                     if (this.addRoleBtn) this.addRoleBtn.classList.remove('hidden');
+                 }
+
+                 if(id) { this.formTitle.textContent = 'แก้ไขข้อมูล'; this.loadStationDataForEdit(id); } 
+                 else {
+                     this.formTitle.textContent = 'เพิ่มข้อมูลใหม่';
+                     if(this.currentUser !== 'Administrator') { const agencyEl = document.getElementById('Agency'); if(agencyEl) agencyEl.value = this.currentUser; }
+                     Swal.close(); this.updatePersonnelSummary();
+                 }
+            },
+            
+            loadStationDataForEdit(id) {
+                google.script.run.withSuccessHandler(data => {
+                    Swal.close();
+                    if(data) {
+                        Object.keys(data).forEach(k => {
+                            const el = document.getElementById(k);
+                            if(el) {
+                                 if(k.endsWith('_IDCard')) { el.dataset.realValue = data[k]; el.value = this.maskIDCard(data[k]); }
+                                 else if(k !== 'IsMuslimFood') el.value = data[k];
+                            }
+                        });
+                        if (data.IsMuslimFood === 'TRUE' || data.IsMuslimFood === true) { this.isMuslimFoodCheckbox.checked = true; this.toggleMuslimFoodDetails(true); } 
+                        else { this.isMuslimFoodCheckbox.checked = false; this.toggleMuslimFoodDetails(false); }
+                        this.updatePersonnelSummary();
+                    }
+                }).getPollingStationData(id);
+            },
+            
+            handleSave(e) {
+                e.preventDefault();
+                this.showLoading('บันทึก...');
+                const fd = new FormData(this.stationForm);
+                const data = Object.fromEntries(fd.entries());
+                data.IsMuslimFood = fd.get('IsMuslimFood') ? 'TRUE' : 'FALSE';
+
+                 this.personnelTabsConfig.forEach(tab => {
+                    const id = `${tab.id}_IDCard`; const el = document.getElementById(id);
+                    if(el && el.dataset.realValue) data[id] = el.dataset.realValue;
+                });
+                google.script.run.withSuccessHandler(res => {
+                    if(res.status==='success') { this.showSuccess('บันทึกแล้ว'); this.showMainPage(); }
+                    else this.showError(res.message);
+                }).savePollingStationData(data);
+            },
+            
+            handleDelete(id) {
+                 Swal.fire({ title:'ยืนยันลบ?', showCancelButton:true, confirmButtonColor:'#d33' }).then(r => {
+                     if(r.isConfirmed) {
+                         this.showLoading('กำลังลบ...');
+                         google.script.run.withSuccessHandler(res => { this.showSuccess('ลบแล้ว'); this.loadStations(); }).deletePollingStation(id);
+                     }
+                 });
+            },
+            
+            maskIDCard(id) { return id && id.length===13 ? `${id[0]}-XXXX-XXXXX-${id.substring(10,12)}-${id[12]}` : id; },
+            unmaskField(el) { if(el.dataset.realValue) el.value = el.dataset.realValue; },
+            maskField(el) { el.dataset.realValue = el.value; el.value = this.maskIDCard(el.value); },
+            handleTogglePassword() { const el = document.getElementById('password'); el.type = el.type === 'password' ? 'text' : 'password'; },
+            toggleLoginButtonState() { const chk = document.getElementById('pdpa-checkbox'); this.loginSubmitBtn.disabled = !chk.checked; this.loginSubmitBtn.classList.toggle('opacity-50', !chk.checked); }
+        };
+
+        window.app = app;
+        app.init();
+    });
+    </script>
+</body>
+</html>
