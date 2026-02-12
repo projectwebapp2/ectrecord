@@ -146,23 +146,24 @@
                     <div class="text-center mb-6">
                         <i class="fa-solid fa-user-shield text-5xl text-theme-600 theme-icon mb-3"></i>
                         <h2 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
+                        <h2 class="text-xl text-gray-800">บันทึกข้อมูลกรรมการประจำหน่วยเลือกตั้ง</h2>						
                     </div>
                     <form id="login-form">
                         <div class="mb-4">
-                            <label for="agency" class="block text-sm font-medium text-gray-700 mb-1">หน่วยงาน</label>
+                            <label for="agency" class="block font-medium text-gray-700 mb-1">ชื่อหน่วยงาน</label>
                             <select id="agency" class="form-input-custom" required>
                                 <!-- Populate by JS -->
                             </select>
                         </div>
                         <div class="mb-4 relative">
-                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                            <label for="password" class="block font-medium text-gray-700 mb-1">รหัสผ่าน</label>
                             <input type="password" id="password" class="form-input-custom pr-10" required>
                             <i class="fa-solid fa-eye absolute right-3 top-9 text-gray-400 cursor-pointer" id="togglePassword"></i>
                         </div>
                         <div class="mb-6 flex items-start">
                             <input type="checkbox" id="pdpa-checkbox" class="mt-1 mr-2">
                             <label for="pdpa-checkbox" class="text-sm text-gray-600">
-                                ฉันยอมรับ <a href="#" id="pdpa-policy-link" class="text-theme-600 underline">นโยบายคุ้มครองข้อมูลส่วนบุคคล</a>
+                                ข้าพเจ้ารับทราบและยินยอมให้ใช้ข้อมูลส่วนบุคคลตาม<br><a href="#" id="pdpa-policy-link" class="text-theme-600 underline">นโยบายคุ้มครองข้อมูลส่วนบุคคล</a>
                             </label>
                         </div>
                         <button type="submit" class="w-full btn btn-primary-custom py-2 rounded-lg opacity-50" disabled>เข้าสู่ระบบ</button>
@@ -450,19 +451,48 @@
             },
             currentStationsData: [],
 
-            init() {
+            async init() {
                 if (GAS_API_URL.includes("เปลี่ยนตรงนี้ให้เป็นของคุณ")) {
                     Swal.fire('ข้อผิดพลาด', 'กรุณาใส่ URL ของ API (Google Apps Script) ในไฟล์โค้ดให้ถูกต้องก่อนเริ่มใช้งาน', 'error');
                     return;
                 }
-                this.loadTheme();
                 this.setupEventListeners();
-                this.loadInitialData();
                 this.adjustTabContainer();
                 if(this.themeBtn) {
                     this.themeBtn.innerHTML = '<i class="fa-solid fa-cog mr-1"></i> ตั้งค่าระบบ';
                     this.themeBtn.classList.remove('bg-gray-200', 'text-gray-700');
                     this.themeBtn.classList.add('bg-orange-100', 'hover:bg-orange-200', 'text-orange-800');
+                }
+
+                this.showLoading('กำลังเริ่มต้นระบบ...');
+                try {
+                    // 1. โหลดข้อมูลจำเป็นสำหรับหน้า Login ไปพร้อมๆ กัน (Parallel) ลดเวลาได้ 2-3 เท่าตัว
+                    const [settings, agencies] = await Promise.all([
+                        apiCall('getThemeSettings').catch(() => ({ theme: 'green' })),
+                        apiCall('getAgencyList').catch(() => [])
+                    ]);
+                    
+                    this.applyTheme(settings.theme || 'green');
+                    this.populateAgencyDropdown(agencies);
+                    
+                    // 2. ปล่อยให้โหลดตำแหน่งเบื้องหลัง ไม่ต้องรอให้เสร็จก็แสดงหน้าจอ Login ได้เลย
+                    this.loadRolesInBackground();
+                    
+                    this.checkLoginState();
+                    Swal.close();
+                } catch (error) {
+                    Swal.close();
+                    this.showError('เกิดข้อผิดพลาดในการเชื่อมต่อระบบ');
+                }
+            },
+
+            async loadRolesInBackground() {
+                try {
+                    const roles = await apiCall('getPersonnelRoles');
+                    this.personnelTabsConfig = roles;
+                    this.generatePersonnelTabs();
+                } catch (e) {
+                    console.error('Failed to load roles', e);
                 }
             },
 
@@ -776,8 +806,7 @@
                         apiCall('addNewPersonnelRole', { roleTitle: result.value }).then(response => {
                             if (response.status === 'success') {
                                 this.showSuccess(response.message);
-                                this.loadInitialData();
-                                setTimeout(() => { this.generatePersonnelTabs(); this.updatePersonnelSummary(); }, 1000);
+                                this.loadRolesInBackground(); // โหลดข้อมูลตำแหน่งใหม่เบื้องหลัง
                             } else { this.showError(response.message); }
                         }).catch(e => this.showError(e.message));
                     }
@@ -799,19 +828,6 @@
                     didOpen: () => { const btn = Swal.getConfirmButton(); btn.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-600'); },
                     width: '600px', padding: '1.5em', customClass: { popup: 'rounded-xl shadow-2xl' }
                 });
-            },
-
-            loadInitialData() {
-                this.showLoading('กำลังเริ่มต้นระบบ...');
-                apiCall('getPersonnelRoles').then(roles => {
-                    this.personnelTabsConfig = roles;
-                    this.generatePersonnelTabs();
-                    apiCall('getAgencyList').then(agencies => {
-                        this.populateAgencyDropdown(agencies);
-                        this.checkLoginState();
-                        Swal.close();
-                    }).catch(e => this.showError(e.message));
-                }).catch(e => this.showError(e.message));
             },
             
             populateAgencyDropdown(agencies) {
@@ -1186,7 +1202,7 @@
             
             handleSave(e) {
                 e.preventDefault();
-                this.showLoading('บันทึก...');
+                this.showLoading('กำลังบันทึก...');
                 const fd = new FormData(this.stationForm);
                 const data = Object.fromEntries(fd.entries());
                 data.IsMuslimFood = fd.get('IsMuslimFood') ? 'TRUE' : 'FALSE';
