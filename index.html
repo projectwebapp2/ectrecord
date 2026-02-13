@@ -185,8 +185,8 @@
                                 <div class="md:col-span-2"><label for="Location" class="block text-base font-medium text-theme-900 mb-1">สถานที่เลือกตั้ง</label><input type="text" id="Location" name="Location" class="form-input-custom bg-white" required></div>
                                  <div><label for="Notes" class="block text-base font-medium text-theme-900 mb-1">หมายเหตุ</label><input type="text" id="Notes" name="Notes" class="form-input-custom bg-white"></div>
 
-                                <!-- Muslim Food Section -->
-                                <div class="md:col-span-3 mt-2 pt-4 border-t border-theme-200">
+                                <!-- Muslim Food Section (Added ID for hiding/showing) -->
+                                <div id="muslim-food-section" class="md:col-span-3 mt-2 pt-4 border-t border-theme-200">
                                     <div class="flex items-center mb-3">
                                         <input type="checkbox" id="IsMuslimFood" name="IsMuslimFood" class="w-5 h-5 text-theme-600 rounded border-gray-300 focus:ring-theme-500 cursor-pointer">
                                         <label for="IsMuslimFood" class="ml-2 text-base font-medium text-theme-900 cursor-pointer select-none">ต้องการอาหารมุสลิม</label>
@@ -212,7 +212,7 @@
                         <!-- Personnel Section Header -->
                         <div class="flex justify-between items-center mt-8 mb-2 pb-2 border-b border-theme-200">
                              <h3 class="font-bold text-xl text-theme-800 flex items-center"><i class="fa-solid fa-user-pen mr-2"></i> บันทึก/แก้ไขคณะกรรมการ</h3>
-                            <button id="add-role-btn" type="button" class="hidden text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors shadow-sm font-medium"><i class="fas fa-cog mr-1"></i> จัดการตำแหน่ง</button>
+                            <button id="add-role-btn" type="button" class="hidden text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors shadow-sm font-medium"><i class="fas fa-plus mr-1"></i> เพิ่มตำแหน่ง</button>
                         </div>
 
                         <!-- Personnel Data Tabs -->
@@ -307,6 +307,7 @@
             currentUser: null,
             personnelTabsConfig: [],
             currentView: 'list',
+            systemSettings: {}, // Store global settings
             themes: {
                 'green':  { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' },
                 'blue':   { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
@@ -331,11 +332,12 @@
                 this.showLoading('กำลังเริ่มต้นระบบ...');
                 try {
                     const [settings, agencies, preloadedNews] = await Promise.all([
-                        apiCall('getThemeSettings').catch(() => ({ theme: 'green' })),
+                        apiCall('getThemeSettings').catch(() => ({ theme: 'green', showMuslimFood: true })),
                         apiCall('getAgencyList').catch(() => []),
                         apiCall('getNewsData').catch(() => null)
                     ]);
                     
+                    this.systemSettings = settings; // Store globally
                     this.applyTheme(settings.theme || 'green');
                     this.populateAgencyDropdown(agencies);
                     this.loadRolesInBackground();
@@ -367,9 +369,7 @@
                 this.refreshDataBtn.addEventListener('click', () => { this.loadDashboardData(); }); 
                 this.usersManageBtn.addEventListener('click', () => this.showUserManagement());
                 if (this.themeBtn) this.themeBtn.addEventListener('click', () => this.showSystemSettings());
-                
-                // เปลี่ยนจาก addNewRole เป็น showRoleManagementModal
-                this.addRoleBtn.addEventListener('click', () => this.showRoleManagementModal());
+                this.addRoleBtn.addEventListener('click', () => this.handleAddNewRole());
                 
                 const pdpaCheckbox = document.getElementById('pdpa-checkbox');
                 if (pdpaCheckbox) pdpaCheckbox.addEventListener('change', () => this.toggleLoginButtonState());
@@ -409,7 +409,7 @@
             showSystemSettings() {
                 this.showLoading('กำลังโหลดการตั้งค่า...');
                 apiCall('getSystemSettings').then(settings => {
-                    settings = settings || { theme: 'green', startTime: '', endTime: '' };
+                    settings = settings || { theme: 'green', startTime: '', endTime: '', showMuslimFood: true };
                     Swal.close();
                     const colorOptions = Object.keys(this.themes).map(color => {
                         const bg = this.themes[color][500];
@@ -429,13 +429,33 @@
                                         <div><label class="block text-xs text-gray-500 mb-1">เวลาปิด</label><input type="datetime-local" id="system-end" class="swal2-input m-0 w-full text-base" value="${settings.endTime || ''}"></div>
                                     </div>
                                 </div>
+                                <hr class="border-gray-200">
+                                <div><label class="block text-sm font-bold text-gray-700 mb-2"><i class="fa-solid fa-sliders mr-1"></i> การตั้งค่าอื่นๆ</label>
+                                    <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded border border-gray-200">
+                                        <label class="text-sm font-medium text-gray-700 cursor-pointer" for="setting-show-muslim">แสดงตัวเลือกอาหารมุสลิม</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input cursor-pointer" type="checkbox" id="setting-show-muslim" ${settings.showMuslimFood !== false ? 'checked' : ''} style="transform: scale(1.3);">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>`,
                         width: '500px', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: 'var(--theme-600)',
-                        preConfirm: () => { return { start: document.getElementById('system-start').value, end: document.getElementById('system-end').value } }
+                        preConfirm: () => { 
+                            return { 
+                                start: document.getElementById('system-start').value, 
+                                end: document.getElementById('system-end').value,
+                                showMuslimFood: document.getElementById('setting-show-muslim').checked
+                            } 
+                        }
                     }).then((result) => {
                         if (result.isConfirmed) {
                             this.showLoading('กำลังบันทึก...');
-                            apiCall('saveTimeSettings', result.value).then(res => this.showSuccess(res.message)).catch(e => this.showError(e.message));
+                            // Updated to use saveSystemConfig to save all settings
+                            apiCall('saveSystemConfig', result.value).then(res => {
+                                this.showSuccess(res.message);
+                                // Update local state immediately
+                                this.systemSettings.showMuslimFood = result.value.showMuslimFood;
+                            }).catch(e => this.showError(e.message));
                         }
                     });
                 }).catch(e => this.showError(e.message));
@@ -539,87 +559,15 @@
                 });
             },
 
-            // ฟังก์ชันใหม่: แสดง Modal จัดการตำแหน่ง (เพิ่ม/ลบ)
-            async showRoleManagementModal() {
-                this.showLoading('กำลังโหลดข้อมูลตำแหน่ง...');
-                try {
-                    const roles = await apiCall('getPersonnelRoles');
-                    Swal.close();
-
-                    let rolesListHtml = `<div class="text-left mb-4"><label class="block text-sm font-bold text-gray-700 mb-2">เพิ่มตำแหน่งใหม่</label><div class="flex gap-2"><input id="new-role-input" type="text" class="form-input-custom" placeholder="ระบุชื่อตำแหน่ง..."><button id="save-new-role-btn" class="btn bg-theme-600 text-white hover:bg-theme-700 whitespace-nowrap"><i class="fas fa-plus"></i> เพิ่ม</button></div></div><div class="border-t border-gray-200 pt-4"><label class="block text-sm font-bold text-gray-700 mb-2">รายการตำแหน่งปัจจุบัน</label><div class="overflow-y-auto max-h-[300px] border border-gray-200 rounded-lg bg-gray-50 p-2 space-y-2">`;
-
-                    if (roles.length === 0) {
-                        rolesListHtml += `<p class="text-center text-gray-500 py-4">ยังไม่มีตำแหน่ง</p>`;
-                    } else {
-                        roles.forEach(role => {
-                            rolesListHtml += `
-                            <div class="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-gray-100">
-                                <span class="font-medium text-gray-700">${role.title}</span>
-                                <button onclick="app.handleDeleteRole('${role.id}', '${role.title}')" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors" title="ลบตำแหน่ง">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>`;
-                        });
-                    }
-                    rolesListHtml += `</div></div>`;
-
-                    await Swal.fire({
-                        title: 'จัดการตำแหน่งกรรมการ',
-                        html: rolesListHtml,
-                        width: '600px',
-                        showConfirmButton: false,
-                        showCloseButton: true,
-                        didOpen: () => {
-                            document.getElementById('save-new-role-btn').addEventListener('click', () => {
-                                const val = document.getElementById('new-role-input').value;
-                                if (!val) return Swal.showValidationMessage('กรุณาระบุชื่อตำแหน่ง');
-                                this.handleAddNewRole(val);
-                            });
-                        }
-                    });
-
-                } catch (e) { this.showError(e.message); }
-            },
-
-            handleAddNewRole(roleTitle) {
-                this.showLoading('กำลังเพิ่มตำแหน่ง...');
-                apiCall('addNewPersonnelRole', { roleTitle: roleTitle }).then(response => {
-                    if (response.status === 'success') { 
-                        this.showSuccess(response.message); 
-                        this.loadRolesInBackground().then(() => {
-                            // ปิด Modal เดิมแล้วเปิดใหม่เพื่อรีเฟรชรายการ
-                            this.showRoleManagementModal();
-                            // ถ้าอยู่ในหน้า Edit Form ให้รีเฟรช Tabs ด้วย
-                            if (!this.editFormPage.classList.contains('hidden')) {
-                                this.generatePersonnelTabs();
-                            }
-                        });
-                    } else { this.showError(response.message); }
-                });
-            },
-
-            handleDeleteRole(roleId, roleTitle) {
+            handleAddNewRole() {
                 Swal.fire({
-                    title: 'ยืนยันการลบตำแหน่ง?',
-                    html: `<div class="text-left text-red-600 bg-red-50 p-4 rounded-lg border border-red-200"><p class="font-bold text-lg mb-2"><i class="fas fa-exclamation-triangle mr-2"></i> คำเตือน!</p><p>คุณกำลังจะลบตำแหน่ง <b>"${roleTitle}"</b></p><p class="mt-2 text-sm text-gray-700">การกระทำนี้จะลบข้อมูลที่เกี่ยวข้อง (ชื่อ, เบอร์โทร ฯลฯ) ของตำแหน่งนี้ออกจาก<b>ทุกหน่วยเลือกตั้ง</b>ทันที และไม่สามารถกู้คืนได้</p></div>`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    confirmButtonText: 'ยืนยันลบ',
-                    cancelButtonText: 'ยกเลิก'
+                    title: 'เพิ่มตำแหน่งใหม่', input: 'text', inputPlaceholder: 'ระบุชื่อตำแหน่ง...', showCancelButton: true, confirmButtonText: 'เพิ่ม',
+                    preConfirm: (val) => { if (!val) { Swal.showValidationMessage('กรุณาระบุชื่อตำแหน่ง'); } return val; }
                 }).then((result) => {
-                    if (result.isConfirmed) {
-                        this.showLoading('กำลังลบข้อมูล...');
-                        apiCall('deletePersonnelRole', { roleId: roleId }).then(response => {
-                            if (response.status === 'success') {
-                                this.showSuccess(response.message);
-                                this.loadRolesInBackground().then(() => {
-                                    this.showRoleManagementModal();
-                                    if (!this.editFormPage.classList.contains('hidden')) {
-                                        this.generatePersonnelTabs();
-                                    }
-                                });
-                            } else { this.showError(response.message); }
+                    if (result.isConfirmed && result.value) {
+                        this.showLoading('กำลังเพิ่มตำแหน่ง...');
+                        apiCall('addNewPersonnelRole', { roleTitle: result.value }).then(response => {
+                            if (response.status === 'success') { this.showSuccess(response.message); this.loadRolesInBackground(); } else { this.showError(response.message); }
                         });
                     }
                 });
@@ -685,9 +633,6 @@
                 if (tabList && tabList.parentElement) tabList.parentElement.classList.remove('mb-4', 'border-b', 'border-gray-200');
             },
 
-            // =====================================
-            // OPTIMIZATION: รวบการดึงข้อมูลจบใน 1 API CALL
-            // =====================================
             loadDashboardData() {
                 const loaderHtml = `<tr><td colspan="7" class="text-center py-10"><i class="fa-solid fa-spinner fa-spin text-3xl text-theme-600"></i><p class="mt-3 text-gray-500 font-medium">กำลังโหลดข้อมูล...</p></td></tr>`;
                 this.stationsTableBody.innerHTML = loaderHtml;
@@ -715,7 +660,6 @@
                 let html = '';
                 stations.forEach((station, index) => {
                     const progress = station.progress || 0;
-                    // UPDATED: Reverted to conditional colors
                     const progressBarColor = progress < 50 ? 'bg-yellow-500' : progress < 100 ? 'bg-blue-500' : 'bg-green-500';
                     const progressBarHtml = `<div class="flex items-center"><span class="text-sm font-medium w-12 text-right pr-2">${progress}%</span><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="${progressBarColor} h-2.5 rounded-full" style="width: ${progress}%"></div></div></div>`;
                     const mapLink = station.MapLink ? `<a href="${station.MapLink}" target="_blank" class="text-theme-600" title="ดูแผนที่"><i class="fa-solid fa-map-location-dot text-xl"></i></a>` : `<span class="text-gray-300"><i class="fa-solid fa-map-location-dot text-xl"></i></span>`;
@@ -736,7 +680,6 @@
                     const subDistrictDisplay = station.SubDistrict.startsWith('แขวง') ? station.SubDistrict : `แขวง${station.SubDistrict}`;
                     const mapBtn = station.MapLink ? `<a href="${station.MapLink}" target="_blank" class="text-theme-500 ml-2"><i class="fa-solid fa-map-location-dot"></i></a>` : '';
 
-                    // UPDATED: Reverted to conditional colors
                     html += `<div class="${cardBgClass} rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all border"><div class="p-5"><div class="flex justify-between items-start mb-4"><div><span class="font-bold uppercase tracking-wider text-gray-500">หน่วยเลือกตั้งที่</span><h3 class="text-3xl font-bold text-theme-700">${station.StationNumber}</h3></div><div class="bg-white/80 rounded-full p-2 shadow-sm"><i class="fa-solid fa-building-user text-theme-500 text-xl"></i></div></div><div class="space-y-2 mb-4"><p class="text-sm text-gray-700 font-medium"><i class="fa-solid fa-map-location-dot w-5 text-center mr-1 text-gray-400"></i> ${subDistrictDisplay}</p><p class="text-sm text-gray-600 truncate"><i class="fa-solid fa-location-dot w-5 text-center mr-1 text-gray-400"></i> ${station.Location} ${mapBtn}</p></div><div class="mb-4"><div class="flex justify-between text-xs mb-1"><span class="font-semibold text-gray-500">ความคืบหน้า</span><span class="font-bold ${statusColor}">${progress}%</span></div><div class="w-full bg-gray-200 rounded-full h-2"><div class="h-2 rounded-full ${isComplete ? 'bg-green-500' : 'bg-theme-500'}" style="width: ${progress}%"></div></div></div><div class="flex gap-2 pt-3 border-t border-gray-200/60"><button onclick="app.showEditForm('${station.StationID}')" class="flex-grow py-2 px-4 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm transition-colors text-center"><i class="fa-solid fa-pencil mr-1"></i> แก้ไข</button>${this.currentUser === 'Administrator' ? `<button onclick="app.handleDelete('${station.StationID}')" class="flex-none w-10 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>` : ''}</div></div></div>`;
                 });
                 this.stationsGridContainer.innerHTML = html;
@@ -755,8 +698,8 @@
                  <div class="bg-gradient-to-br from-theme-700 to-theme-900 rounded-xl shadow-md p-6 text-white relative overflow-hidden flex flex-col justify-between min-h-[160px]">
                     <div class="absolute -right-4 top-4 opacity-20 transform scale-150"><i class="fa-solid fa-globe text-9xl text-white"></i></div>
                     <div class="relative z-10">
-                        <div class="flex items-center mb-1"><div class="rounded-full p-1 mr-2"><i class="fa-solid fa-chart-pie text-xl text-white"></i></div><h4 class="text-lg font-bold">ภาพรวมทั้งหมด</h4></div>
-                        <p class="text-theme-100 text-xs mb-2">ความคืบหน้าของทุกหน่วยงานรวมกัน</p>
+                        <div class="flex items-center mb-1"><div class="rounded-full p-1 mr-2"><i class="fa-solid fa-chart-pie text-2xl text-white"></i></div><h4 class="text-xl font-bold"> ภาพรวมทั้งหมด</h4></div>
+                        <p class="text-theme-100 text-xs mb-1">ความคืบหน้าของทุกหน่วยงานรวมกัน</p>
                         <p class="text-sm font-bold mb-1 opacity-90">บันทึกแล้ว: ${completedStationsSum} / ${totalStationsSum} หน่วย</p>
                     </div>
                     <div class="relative z-10 mt-1">
@@ -896,6 +839,14 @@
                      if (this.addRoleBtn) this.addRoleBtn.classList.add('hidden');
                  } else {
                      if (this.addRoleBtn) this.addRoleBtn.classList.remove('hidden');
+                 }
+
+                 // --- UPDATED: Hide Muslim Food Section if disabled in settings ---
+                 const muslimContainer = document.getElementById('muslim-food-section');
+                 if (this.systemSettings && this.systemSettings.showMuslimFood === false) {
+                     if(muslimContainer) muslimContainer.classList.add('hidden');
+                 } else {
+                     if(muslimContainer) muslimContainer.classList.remove('hidden');
                  }
 
                  if(id) { this.formTitle.textContent = 'แก้ไขข้อมูล'; this.loadStationDataForEdit(id); } 
